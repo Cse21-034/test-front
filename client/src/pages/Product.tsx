@@ -12,7 +12,9 @@ import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import type { Product } from "@shared/schema";
 
+// ✅ Ensure correct backend URL
 const backendURL = (import.meta.env.VITE_API_BASE_URL || "https://myshop-qp1o.onrender.com").replace(/\/$/, "");
+
 export default function Product() {
   const { id } = useParams();
   const [selectedSize, setSelectedSize] = useState<string>("");
@@ -22,10 +24,11 @@ export default function Product() {
   const { addToCart } = useCart();
   const { toast } = useToast();
 
+  // ✅ Fetch product from full backend URL
   const { data: product, isLoading } = useQuery({
-    queryKey: ["/api/products", id],
+    queryKey: ["product", id],
     queryFn: async () => {
-      const response = await fetch(`/api/products/${id}`);
+      const response = await fetch(`${backendURL}/api/products/${id}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error("Product not found");
@@ -37,11 +40,12 @@ export default function Product() {
     enabled: !!id,
   });
 
+  // ✅ Fetch related products with full backend URL
   const { data: relatedProducts = [] } = useQuery({
-    queryKey: ["/api/products", { categoryId: product?.categoryId }],
+    queryKey: ["related-products", product?.categoryId],
     queryFn: async () => {
       if (!product?.categoryId) return [];
-      const response = await fetch(`/api/products?categoryId=${product.categoryId}&active=true`);
+      const response = await fetch(`${backendURL}/api/products?categoryId=${product.categoryId}&active=true`);
       if (!response.ok) return [];
       const products = await response.json();
       return products.filter((p: Product) => p.id !== product.id).slice(0, 4);
@@ -49,6 +53,7 @@ export default function Product() {
     enabled: !!product?.categoryId,
   });
 
+  
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
