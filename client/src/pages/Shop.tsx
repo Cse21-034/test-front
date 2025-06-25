@@ -15,6 +15,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import type { Product } from "@shared/schema";
 
+const backendURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
 export default function Shop() {
   const [location] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,7 +26,6 @@ export default function Shop() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Parse URL parameters
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSearchQuery(params.get("search") || "");
@@ -32,16 +33,17 @@ export default function Shop() {
   }, [location]);
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["/api/categories"],
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const res = await fetch(`${backendURL}/api/categories`);
+      if (!res.ok) throw new Error("Failed to fetch categories");
+      return res.json();
+    },
   });
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["/api/products", { 
-      search: searchQuery, 
-      category: selectedCategory, 
-      minPrice: priceRange.min, 
-      maxPrice: priceRange.max 
-    }],
+    queryKey: ["products", { searchQuery, selectedCategory, priceRange }],
+    enabled: categories.length > 0,
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append("search", searchQuery);
@@ -53,7 +55,7 @@ export default function Shop() {
       if (priceRange.max) params.append("maxPrice", priceRange.max);
       params.append("active", "true");
 
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetch(`${backendURL}/api/products?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch products");
       return response.json();
     },
@@ -83,7 +85,7 @@ export default function Shop() {
     if (selectedCategory) params.append("category", selectedCategory);
     if (priceRange.min) params.append("minPrice", priceRange.min);
     if (priceRange.max) params.append("maxPrice", priceRange.max);
-    
+
     const newURL = `/shop${params.toString() ? `?${params.toString()}` : ""}`;
     window.history.pushState({}, "", newURL);
   };
@@ -102,6 +104,8 @@ export default function Shop() {
   };
 
   const activeFiltersCount = [searchQuery, selectedCategory, priceRange.min, priceRange.max].filter(Boolean).length;
+
+  
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -282,4 +286,5 @@ export default function Shop() {
       <Footer />
     </div>
   );
+  
 }
