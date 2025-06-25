@@ -15,7 +15,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import type { Product } from "@shared/schema";
 
-const backendURL = import.meta.env.VITE_API_BASE_URL || "https://myshop-qp1o.onrender.com/";
+const backendURL = (import.meta.env.VITE_API_BASE_URL || "https://myshop-qp1o.onrender.com").replace(/\/$/, "");
+
 
 export default function Shop() {
   const [location] = useLocation();
