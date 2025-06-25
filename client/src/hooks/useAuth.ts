@@ -1,3 +1,6 @@
+import { useQuery } from "@tanstack/react-query"; // ✅ Required!
+import { getQueryFn } from "@/lib/queryClient";
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export function useAuth() {
