@@ -12,6 +12,7 @@ import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import type { Product } from "@shared/schema";
 
+const backendURL = (import.meta.env.VITE_API_BASE_URL || "https://myshop-qp1o.onrender.com").replace(/\/$/, "");
 export default function Product() {
   const { id } = useParams();
   const [selectedSize, setSelectedSize] = useState<string>("");
