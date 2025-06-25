@@ -12,10 +12,12 @@ export function useAuth() {
     staleTime: 0,
   });
 
+  const resolvedUser = user ?? null;
+
   return {
-    user,
-    isLoading: isLoading || isFetching,
-    isAuthenticated: !!user,
+    user: resolvedUser,
+    isLoading: false, 
+    isAuthenticated: !!resolvedUser,
     error,
   };
 }
