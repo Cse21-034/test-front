@@ -1,9 +1,7 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-
-// ✅ Backend base URL with fallback
-const backendURL = (import.meta.env.VITE_API_BASE_URL || "https://myshop-qp1o.onrender.com").replace(/\/$/, "");
 
 interface CartItem {
   id: number;
@@ -39,27 +37,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["/api/cart"],
-    queryFn: async () => {
-      const res = await fetch(`${backendURL}/api/cart`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch cart");
-      return res.json();
-    },
     refetchOnWindowFocus: false,
   });
 
   const addToCartMutation = useMutation({
     mutationFn: async (data: { productId: number; quantity: number; size?: string; color?: string }) => {
-      const res = await fetch(`${backendURL}/api/cart`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Add to cart failed");
+      await apiRequest("POST", "/api/cart", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
-      toast({ title: "Added to cart", description: "Item has been added to your cart." });
+      toast({
+        title: "Added to cart",
+        description: "Item has been added to your cart.",
+      });
     },
     onError: () => {
       toast({
@@ -72,15 +62,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQuantityMutation = useMutation({
     mutationFn: async ({ id, quantity }: { id: number; quantity: number }) => {
-      const res = await fetch(`${backendURL}/api/cart/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ quantity }),
-      });
-      if (!res.ok) throw new Error("Update failed");
+      await apiRequest("PUT", `/api/cart/${id}`, { quantity });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/cart"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+    },
     onError: () => {
       toast({
         title: "Error",
@@ -92,15 +78,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeItemMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`${backendURL}/api/cart/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Remove failed");
+      await apiRequest("DELETE", `/api/cart/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
-      toast({ title: "Removed from cart", description: "Item removed successfully." });
+      toast({
+        title: "Removed from cart",
+        description: "Item has been removed from your cart.",
+      });
     },
     onError: () => {
       toast({
@@ -113,13 +98,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCartMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${backendURL}/api/cart`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Clear cart failed");
+      await apiRequest("DELETE", "/api/cart");
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/cart"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+    },
     onError: () => {
       toast({
         title: "Error",
