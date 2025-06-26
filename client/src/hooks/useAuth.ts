@@ -4,30 +4,28 @@ import { getQueryFn } from "@/lib/queryClient";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export function useAuth() {
-  const {
-    data: user,
-    isLoading,
-    isFetching,
-    error,
-    refetch,
-  } = useQuery({
+  const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ["authUser"],
     queryFn: getQueryFn({
       url: `${BACKEND_URL}/api/auth/user`,
       on401: "returnNull",
     }),
-    staleTime: 0,
     retry: false,
-    refetchOnWindowFocus: true,
     refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
+  // Debug logging
+  console.log("[useAuth] isLoading:", isLoading);
+  console.log("[useAuth] isFetching:", isFetching);
+  console.log("[useAuth] data:", data);
+  console.log("[useAuth] error:", error);
+
   return {
-    user: user ?? null,
-    isAuthenticated: !!user,
+    user: data ?? null,
     isLoading,
     isFetching,
+    isAuthenticated: !!data,
     error,
-    refetch,
   };
 }
