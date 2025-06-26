@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, createQueryKey } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface CartItem {
@@ -35,8 +35,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // ✅ Use consistent query key format
+  const cartQueryKey = createQueryKey("cart");
+
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ["/api/cart"],
+    queryKey: cartQueryKey,
     refetchOnWindowFocus: false,
   });
 
@@ -45,16 +48,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       await apiRequest("POST", "/api/cart", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      queryClient.invalidateQueries({ queryKey: cartQueryKey });
       toast({
         title: "Added to cart",
         description: "Item has been added to your cart.",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to add item to cart.",
+        description: error.message || "Failed to add item to cart.",
         variant: "destructive",
       });
     },
@@ -65,12 +68,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       await apiRequest("PUT", `/api/cart/${id}`, { quantity });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      queryClient.invalidateQueries({ queryKey: cartQueryKey });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to update cart item.",
+        description: error.message || "Failed to update cart item.",
         variant: "destructive",
       });
     },
@@ -81,16 +84,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       await apiRequest("DELETE", `/api/cart/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      queryClient.invalidateQueries({ queryKey: cartQueryKey });
       toast({
         title: "Removed from cart",
         description: "Item has been removed from your cart.",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to remove item from cart.",
+        description: error.message || "Failed to remove item from cart.",
         variant: "destructive",
       });
     },
@@ -101,12 +104,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       await apiRequest("DELETE", "/api/cart");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      queryClient.invalidateQueries({ queryKey: cartQueryKey });
+      toast({
+        title: "Cart cleared",
+        description: "All items have been removed from your cart.",
+      });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to clear cart.",
+        description: error.message || "Failed to clear cart.",
         variant: "destructive",
       });
     },
