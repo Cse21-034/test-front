@@ -9,15 +9,17 @@ export function useAuth() {
     isLoading,
     isFetching,
     error,
+    refetch,
   } = useQuery({
     queryKey: ["authUser"],
     queryFn: getQueryFn({
       url: `${BACKEND_URL}/api/auth/user`,
-      on401: "returnNull"
+      on401: "returnNull",
     }),
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    staleTime: 0,
     retry: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   return {
@@ -26,5 +28,6 @@ export function useAuth() {
     isLoading,
     isFetching,
     error,
+    refetch,
   };
 }
