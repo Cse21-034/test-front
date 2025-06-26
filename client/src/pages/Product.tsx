@@ -29,6 +29,8 @@ export default function Product() {
     queryKey: ["product", id],
     queryFn: async () => {
       const response = await fetch(`${backendURL}/api/products/${id}`);
+     
+
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error("Product not found");
