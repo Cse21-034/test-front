@@ -161,13 +161,13 @@ export default function Header() {
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem>
-                        <a href="${API_BASE}/auth/logout">Logout</a>
+                        <a href={`${backendURL}/auth/logout`}>Logout</a>
                       </DropdownMenuItem>
                     </>
                   ) : (
                     <>
                       <DropdownMenuItem>
-                        <a href="${API_BASE}/auth/google">Login with Google</a>
+                        <a href={`${backendURL}/auth/google`}>Login with Google</a>
                       </DropdownMenuItem>
                     </>
                   )}
