@@ -34,12 +34,15 @@ const CartContext = createContext<CartContextType>({
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  // ✅ Use consistent query key format
   const cartQueryKey = createQueryKey("cart");
 
+  // ✅ FIXED: Now actually fetch and parse cart data
   const { data: items = [], isLoading } = useQuery({
     queryKey: cartQueryKey,
+    queryFn: async (): Promise<CartItem[]> => {
+      const res = await apiRequest("GET", "/api/cart");
+      return res.json();
+    },
     refetchOnWindowFocus: false,
   });
 
