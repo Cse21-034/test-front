@@ -1,9 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// Read backend base URL from Vite environment variables
-//const BASE_URL = import.meta.env.VITE_API_BASE;
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || "https://myshop-qp1o.onrender.com").replace(/\/$/, "");
-
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -11,18 +7,16 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-// General API request function with method, path, and data
 export async function apiRequest(
   method: string,
   url: string,
-  data?: unknown
+  data?: unknown | undefined,
 ): Promise<Response> {
-  const fullUrl = `${BASE_URL}${url}`;
-  const res = await fetch(fullUrl, {
+  const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include", // required for session cookies
+    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -30,15 +24,12 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-
-// React Query fetcher with optional 401 handling
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const fullUrl = `${BASE_URL}${queryKey[0] as string}`;
-    const res = await fetch(fullUrl, {
+    const res = await fetch(queryKey[0] as string, {
       credentials: "include",
     });
 
@@ -50,7 +41,6 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
-// Query client config
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
