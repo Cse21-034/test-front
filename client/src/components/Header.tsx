@@ -2,10 +2,25 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Search, Menu, User, ShoppingCart, Headphones } from "lucide-react";
+import {
+  Search,
+  Menu,
+  User,
+  ShoppingCart,
+  Headphones,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/context/CartContext";
 import CartDrawer from "./CartDrawer";
@@ -29,7 +44,7 @@ export default function Header() {
       <div className="bg-primary text-white text-center py-2 text-sm">
         Free shipping on orders over $75 | Use code: FREESHIP
       </div>
-      
+
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <nav className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -41,10 +56,20 @@ export default function Header() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <Link href="/" className={`text-gray-700 hover:text-primary transition-colors ${location === '/' ? 'text-primary font-semibold' : ''}`}>
+              <Link
+                href="/"
+                className={`text-gray-700 hover:text-primary transition-colors ${
+                  location === "/" ? "text-primary font-semibold" : ""
+                }`}
+              >
                 Home
               </Link>
-              <Link href="/shop" className={`text-gray-700 hover:text-primary transition-colors ${location === '/shop' ? 'text-primary font-semibold' : ''}`}>
+              <Link
+                href="/shop"
+                className={`text-gray-700 hover:text-primary transition-colors ${
+                  location === "/shop" ? "text-primary font-semibold" : ""
+                }`}
+              >
                 Shop
               </Link>
               <DropdownMenu>
@@ -63,10 +88,20 @@ export default function Header() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Link href="/about" className={`text-gray-700 hover:text-primary transition-colors ${location === '/about' ? 'text-primary font-semibold' : ''}`}>
+              <Link
+                href="/about"
+                className={`text-gray-700 hover:text-primary transition-colors ${
+                  location === "/about" ? "text-primary font-semibold" : ""
+                }`}
+              >
                 About
               </Link>
-              <Link href="/contact" className={`text-gray-700 hover:text-primary transition-colors ${location === '/contact' ? 'text-primary font-semibold' : ''}`}>
+              <Link
+                href="/contact"
+                className={`text-gray-700 hover:text-primary transition-colors ${
+                  location === "/contact" ? "text-primary font-semibold" : ""
+                }`}
+              >
                 Contact
               </Link>
             </div>
@@ -89,14 +124,31 @@ export default function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm">
-                    <User className="h-5 w-5" />
+                    {isAuthenticated && user?.photos?.[0]?.value ? (
+                      <img
+                        src={user.photos[0].value}
+                        alt="User"
+                        className="w-6 h-6 rounded-full"
+                      />
+                    ) : (
+                      <User className="h-5 w-5" />
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {isAuthenticated ? (
                     <>
                       <DropdownMenuItem>
-                        <Link href="/profile">My Profile</Link>
+                        <Link href="/profile" className="flex items-center gap-2">
+                          {user?.photos?.[0]?.value && (
+                            <img
+                              src={user.photos[0].value}
+                              alt="Profile"
+                              className="w-5 h-5 rounded-full"
+                            />
+                          )}
+                          <span>{user.displayName || user.firstName}</span>
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem>
                         <Link href="/orders">My Orders</Link>
@@ -107,16 +159,13 @@ export default function Header() {
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem>
-                        <a href="/api/logout">Logout</a>
+                        <a href="/auth/logout">Logout</a>
                       </DropdownMenuItem>
                     </>
                   ) : (
                     <>
                       <DropdownMenuItem>
-                        <a href="/api/login">Login</a>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <a href="/api/login">Register</a>
+                        <a href="/auth/google">Login with Google</a>
                       </DropdownMenuItem>
                     </>
                   )}
@@ -132,7 +181,10 @@ export default function Header() {
               >
                 <ShoppingCart className="h-5 w-5" />
                 {itemCount > 0 && (
-                  <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                  >
                     {itemCount}
                   </Badge>
                 )}
@@ -158,13 +210,10 @@ export default function Header() {
                         {user?.isAdmin && (
                           <Link href="/admin" className="text-lg">Admin</Link>
                         )}
-                        <a href="/api/logout" className="text-lg">Logout</a>
+                        <a href="/auth/logout" className="text-lg">Logout</a>
                       </>
                     ) : (
-                      <>
-                        <a href="/api/login" className="text-lg">Login</a>
-                        <a href="/api/login" className="text-lg">Register</a>
-                      </>
+                      <a href="/auth/google" className="text-lg">Login with Google</a>
                     )}
                   </div>
                 </SheetContent>
