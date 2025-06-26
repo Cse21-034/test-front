@@ -10,10 +10,13 @@ export function useAuth() {
     isFetching,
     error,
   } = useQuery({
-    queryKey: ["authUser"], // ✅ use a consistent static key
-    queryFn: getQueryFn({ url: `${BACKEND_URL}/api/auth/user`, on401: "returnNull" }),
-    refetchOnWindowFocus: true, // ✅ refetch if user switches back
-    refetchOnMount: true,       // ✅ refetch on every page load
+    queryKey: ["authUser"],
+    queryFn: getQueryFn({
+      url: `${BACKEND_URL}/api/auth/user`,
+      on401: "returnNull"
+    }),
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     retry: false,
   });
 
