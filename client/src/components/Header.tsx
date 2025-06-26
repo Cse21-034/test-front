@@ -25,6 +25,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/context/CartContext";
 import CartDrawer from "./CartDrawer";
 
+const backendURL = (import.meta.env.VITE_API_BASE_URL || "https://myshop-qp1o.onrender.com").replace(/\/$/, "");
+
 export default function Header() {
   const [location] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -159,13 +161,13 @@ export default function Header() {
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem>
-                        <a href="/auth/logout">Logout</a>
+                        <a href="${API_BASE}/auth/logout">Logout</a>
                       </DropdownMenuItem>
                     </>
                   ) : (
                     <>
                       <DropdownMenuItem>
-                        <a href="/auth/google">Login with Google</a>
+                        <a href="${API_BASE}/auth/google">Login with Google</a>
                       </DropdownMenuItem>
                     </>
                   )}
