@@ -4,30 +4,41 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { Headphones, ShoppingBag, Truck, Shield, Star } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getQueryFn, createQueryKey, BASE_URL } from "@/lib/queryClient";
 import ProductCard from "@/components/ProductCard";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import type { Product } from "@shared/schema";
+import type { Product, Category } from "@shared/schema";
 
 export default function Landing() {
-  const { data: featuredProducts = [] } = useQuery({
-    queryKey: ["/api/products", { featured: true }],
-    queryFn: async () => {
-      const response = await fetch("/api/products?featured=true&active=true");
-      if (!response.ok) throw new Error("Failed to fetch featured products");
-      return response.json();
-    },
+  const queryClient = useQueryClient();
+
+  // Fetch featured products
+  const { data: featuredProducts = [], error: productsError } = useQuery({
+    queryKey: createQueryKey("/api/products", { featured: true, active: true }),
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ["/api/categories"],
-    queryFn: async () => {
-      const response = await fetch("/api/categories");
-      if (!response.ok) throw new Error("Failed to fetch categories");
-      return response.json();
-    },
+  // Fetch categories
+  const { data: categories = [], error: categoriesError } = useQuery({
+    queryKey: createQueryKey("/api/categories"),
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
+
+  // Debug logging
+  useEffect(() => {
+    console.log("BASE_URL:", BASE_URL);
+    console.log("Categories data:", categories);
+    if (categoriesError) {
+      console.error("Categories fetch error:", categoriesError);
+    }
+    if (productsError) {
+      console.error("Products fetch error:", productsError);
+    }
+  }, [categories, categoriesError, productsError]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -61,7 +72,7 @@ export default function Landing() {
                   className="text-white border-white hover:bg-white hover:text-black px-8 py-3"
                   asChild
                 >
-                  <a href="/api/login">Sign In to Shop</a>
+                  <a href={`${BASE_URL}/auth/google`}>Sign In to Shop</a>
                 </Button>
               </div>
             </div>
@@ -109,29 +120,37 @@ export default function Landing() {
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12 text-primary">Shop by Category</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {categories.slice(0, 3).map((category: any) => (
-              <div key={category.id} className="group cursor-pointer">
-                <img 
-                  src={category.imageUrl || "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300"} 
-                  alt={category.name}
-                  className="w-full h-64 object-cover rounded-lg group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="mt-4 text-center">
-                  <h3 className="text-xl font-semibold text-primary">{category.name}</h3>
-                  <p className="text-gray-600 mt-2">{category.description}</p>
-                  <Button className="mt-4" variant="outline" asChild>
-                    <Link href={`/shop?category=${category.slug}`}>Browse {category.name}</Link>
-                  </Button>
+          {categoriesError ? (
+            <p className="text-center text-red-600">Error loading categories: {categoriesError.message}</p>
+          ) : categories.length === 0 ? (
+            <p className="text-center text-gray-600">No categories available.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {categories.slice(0, 3).map((category: Category) => (
+                <div key={category.id} className="group cursor-pointer">
+                  <img 
+                    src={category.imageUrl || "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300"} 
+                    alt={category.name}
+                    className="w-full h-64 object-cover rounded-lg group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="mt-4 text-center">
+                    <h3 className="text-xl font-semibold text-primary">{category.name}</h3>
+                    <p className="text-gray-600 mt-2">{category.description}</p>
+                    <Button className="mt-4" variant="outline" asChild>
+                      <Link href={`/shop?category=${category.slug}`}>Browse {category.name}</Link>
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
       {/* Featured Products */}
-      {featuredProducts.length > 0 && (
+      {productsError ? (
+        <p className="text-center text-red-600">Error loading products: {productsError.message}</p>
+      ) : featuredProducts.length > 0 && (
         <section className="py-16 bg-white">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-between mb-12">
@@ -162,7 +181,7 @@ export default function Landing() {
               className="bg-secondary hover:bg-yellow-600 text-white px-8 py-3"
               asChild
             >
-              <a href="/api/login">Create Account</a>
+              <a href={`${BASE_URL}/auth/google`}>Create Account</a>
             </Button>
             <Button 
               size="lg"
