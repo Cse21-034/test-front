@@ -33,21 +33,69 @@ async function getCsrfToken(): Promise<string> {
 
 type UnauthorizedBehavior = "returnNull" | "throw";
 
-export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryFunction<T> =
-  ({ on401 }) =>
-  async ({ queryKey }) => {
-    const urlOrPath = queryKey[0] as string;
-    const fullUrl = urlOrPath.startsWith("http") ? urlOrPath : `${BASE_URL}${urlOrPath}`;
-    const res = await fetch(fullUrl, {
-      credentials: "include",
-      headers: { "X-CSRF-Token": await getCsrfToken() },
+
+
+
+
+ 
+ 
+export const getQueryFn = ({ on401 = "throw" }: { on401?: "throw" | "returnNull" } = {}) => {
+  return async ({ queryKey }: { queryKey: string[] }) => {
+    const url = `https://myshop-test-backend.onrender.com${queryKey[0]}`;
+    
+    const response = await fetch(url, {
+      credentials: 'include', // CRITICAL: Always include credentials
+      headers: {
+        'Content-Type': 'application/json',
+         headers: { "X-CSRF-Token": await getCsrfToken() 
+      },
     });
-    if (on401 === "returnNull" && res.status === 401) {
-      return null as any;
+
+    if (response.status === 401) {
+      if (on401 === "returnNull") {
+        return null;
+      }
+      throw new Error('Unauthorized');
     }
-    await throwIfResNotOk(res);
-    return await res.json();
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status}`);
+    }
+
+    return response.json();
   };
+};
+
+
+
+
+// Also update any other fetch calls to include credentials
+export const apiClient = {
+  get: (url: string) => fetch(`https://myshop-test-backend.onrender.com${url}`, {
+    credentials: 'include',
+  }),
+  
+  post: (url: string, data: any) => fetch(`https://myshop-test-backend.onrender.com${url}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  }),
+  
+
+
+
+
+
+
+
+
+
+
+
+
 
 export const customQueryFn = async ({ queryKey }: { queryKey: readonly unknown[] }) => {
   const urlOrPath = queryKey[0] as string;
