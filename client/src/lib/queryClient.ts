@@ -1,6 +1,10 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 
-const BASE_URL = (import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_BASE_URL || "https://myshop-test-backend.onrender.com").replace(/\/$/, "");
+const BASE_URL = (
+  import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://myshop-test-backend.onrender.com"
+).replace(/\/$/, "");
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -9,13 +13,17 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-export async function apiRequest(method: string, url: string, data?: unknown): Promise<Response> {
+export async function apiRequest(
+  method: string,
+  url: string,
+  data?: unknown
+): Promise<Response> {
   const fullUrl = url.startsWith("http") ? url : `${BASE_URL}${url}`;
   const res = await fetch(fullUrl, {
     method,
     headers: {
       ...(data ? { "Content-Type": "application/json" } : {}),
-      "X-CSRF-Token": await getCsrfToken(), // Fetch CSRF token
+      "X-CSRF-Token": await getCsrfToken(),
     },
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
@@ -26,28 +34,26 @@ export async function apiRequest(method: string, url: string, data?: unknown): P
 
 // Fetch CSRF token
 async function getCsrfToken(): Promise<string> {
-  const res = await fetch(`${BASE_URL}/api/csrf-token`, { credentials: "include" });
+  const res = await fetch(`${BASE_URL}/api/csrf-token`, {
+    credentials: "include",
+  });
   const { csrfToken } = await res.json();
   return csrfToken;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
 
-
-
-
-
- 
- 
-export const getQueryFn = ({ on401 = "throw" }: { on401?: "throw" | "returnNull" } = {}) => {
+export const getQueryFn = ({
+  on401 = "throw",
+}: { on401?: UnauthorizedBehavior } = {}) => {
   return async ({ queryKey }: { queryKey: string[] }) => {
     const url = `https://myshop-test-backend.onrender.com${queryKey[0]}`;
 
     const response = await fetch(url, {
-      credentials: 'include',
+      credentials: "include",
       headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': await getCsrfToken(),
+        "Content-Type": "application/json",
+        "X-CSRF-Token": await getCsrfToken(),
       },
     });
 
@@ -66,39 +72,34 @@ export const getQueryFn = ({ on401 = "throw" }: { on401?: "throw" | "returnNull"
   };
 };
 
-
-
-
-// Also update any other fetch calls to include credentials
+// ✅ Closed apiClient object properly
 export const apiClient = {
-  get: (url: string) => fetch(`https://myshop-test-backend.onrender.com${url}`, {
-    credentials: 'include',
-  }),
-  
-  post: (url: string, data: any) => fetch(`https://myshop-test-backend.onrender.com${url}`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  }),
+  get: (url: string) =>
+    fetch(`https://myshop-test-backend.onrender.com${url}`, {
+      credentials: "include",
+    }),
+
+  post: (url: string, data: any) =>
+    fetch(`https://myshop-test-backend.onrender.com${url}`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    }),
 };
 
-
-
-
-
-
-
-
-
-
-
-
-export const customQueryFn = async ({ queryKey }: { queryKey: readonly unknown[] }) => {
+// ✅ Now customQueryFn is correctly placed
+export const customQueryFn = async ({
+  queryKey,
+}: {
+  queryKey: readonly unknown[];
+}) => {
   const urlOrPath = queryKey[0] as string;
-  const fullUrl = urlOrPath.startsWith("http") ? urlOrPath : `${BASE_URL}${urlOrPath}`;
+  const fullUrl = urlOrPath.startsWith("http")
+    ? urlOrPath
+    : `${BASE_URL}${urlOrPath}`;
   const res = await fetch(fullUrl, {
     credentials: "include",
     headers: { "X-CSRF-Token": await getCsrfToken() },
@@ -120,7 +121,10 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000,
       retry: (failureCount, error) => {
-        if (error?.message?.includes("404") || error?.message?.includes("4")) {
+        if (
+          error?.message?.includes("404") ||
+          error?.message?.includes("4")
+        ) {
           return false;
         }
         return failureCount < 3;
@@ -137,8 +141,13 @@ export function buildApiUrl(path: string): string {
   return `${BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-export function createQueryKey(path: string, params?: Record<string, any>): string[] {
-  const basePath = path.startsWith("/api/") ? path : `/api/${path.replace(/^\//, "")}`;
+export function createQueryKey(
+  path: string,
+  params?: Record<string, any>
+): string[] {
+  const basePath = path.startsWith("/api/")
+    ? path
+    : `/api/${path.replace(/^\//, "")}`;
   if (params) {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
