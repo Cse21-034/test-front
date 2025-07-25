@@ -45,10 +45,11 @@ export const getQueryFn = ({ on401 = "throw" }: { on401?: "throw" | "returnNull"
     
     const response = await fetch(url, {
       credentials: 'include', // CRITICAL: Always include credentials
-      headers: {
-        'Content-Type': 'application/json',
-         headers: { "X-CSRF-Token": await getCsrfToken() 
-      },
+  headers: {
+  'Content-Type': 'application/json',
+  'X-CSRF-Token': await getCsrfToken()
+},
+
     });
 
     if (response.status === 401) {
