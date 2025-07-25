@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getQueryFn } from "@/lib/queryClient";
+import { getQueryFn, buildApiUrl } from "@/lib/queryClient";
 
 export function useAuth() {
   const { data, isLoading, error, isFetching } = useQuery({
@@ -8,6 +8,7 @@ export function useAuth() {
     retry: false,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
   });
 
   return {
