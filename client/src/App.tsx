@@ -22,11 +22,48 @@ import Contact from "@/pages/Contact";
 // Loading screen
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white text-gray-700">
-      Loading...
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="text-center space-y-8">
+        {/* Logo/Brand Icon */}
+        <div className="relative">
+          <div className="w-20 h-20 mx-auto bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <ShoppingBag className="w-10 h-10 text-white" />
+          </div>
+          {/* Pulsing ring animation */}
+          <div className="absolute inset-0 w-20 h-20 mx-auto rounded-2xl border-2 border-blue-400 animate-ping opacity-20"></div>
+        </div>
+        
+        {/* Brand Name */}
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+            sho-Audio
+          </h1>
+          <p className="text-slate-500 text-sm">
+            Loading your shopping experience...
+          </p>
+        </div>
+        
+        {/* Loading Animation */}
+        <div className="flex items-center justify-center space-x-2">
+          <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+          <div className="flex space-x-1">
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="w-64 mx-auto">
+          <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
+
 
 // ProtectedRoute wrapper
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
