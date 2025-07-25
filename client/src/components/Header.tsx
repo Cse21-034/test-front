@@ -25,7 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/context/CartContext";
 import CartDrawer from "./CartDrawer";
 
-const backendURL = (import.meta.env.VITE_API_BASE_URL || "https://myshop-qp1o.onrender.com").replace(/\/$/, "");
+const backendURL = (import.meta.env.VITE_API_BASE_URL || "https://myshop-test-backend.onrender.com").replace(/\/$/, "");
 
 export default function Header() {
   const [location] = useLocation();
