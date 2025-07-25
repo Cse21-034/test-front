@@ -22,11 +22,37 @@ export function useAuth() {
     
     if (loginStatus === 'success') {
       console.log('🔐 OAuth success detected, refetching user data...');
-      // Force refetch user data after successful OAuth
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-        refetch();
-      }, 500); // Small delay to ensure session is established
+      
+      // Multiple attempts to ensure session is recognized
+      const attemptRefetch = async (attempt = 1, maxAttempts = 5) => {
+        console.log(`🔐 Refetch attempt ${attempt}/${maxAttempts}`);
+        
+        try {
+          // Force invalidate and refetch
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+          const result = await refetch();
+          
+          if (result.data) {
+            console.log('✅ User data fetched successfully:', result.data);
+            return;
+          }
+          
+          // If no data and we have attempts left, try again
+          if (attempt < maxAttempts) {
+            setTimeout(() => attemptRefetch(attempt + 1, maxAttempts), 1000 * attempt);
+          } else {
+            console.log('❌ Failed to fetch user data after', maxAttempts, 'attempts');
+          }
+        } catch (error) {
+          console.error(`❌ Refetch attempt ${attempt} failed:`, error);
+          if (attempt < maxAttempts) {
+            setTimeout(() => attemptRefetch(attempt + 1, maxAttempts), 1000 * attempt);
+          }
+        }
+      };
+      
+      // Start with a small delay, then begin attempts
+      setTimeout(() => attemptRefetch(), 500);
       
       // Clean up URL params
       const newUrl = window.location.pathname;
@@ -35,7 +61,6 @@ export function useAuth() {
     
     if (loginStatus === 'failed') {
       console.log('❌ OAuth failed');
-      // Clean up URL params
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
     }
@@ -50,7 +75,7 @@ export function useAuth() {
         refetch();
       }
     };
-
+    
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [data, queryClient, refetch]);
@@ -58,7 +83,7 @@ export function useAuth() {
   const logout = async () => {
     try {
       await fetch('https://myshop-test-backend.onrender.com/auth/logout', {
-        credentials: 'include',
+        credentials: 'include', // CRITICAL: Include credentials
       });
       // Clear all queries and reset auth state
       queryClient.clear();
