@@ -42,21 +42,20 @@ type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn = ({ on401 = "throw" }: { on401?: "throw" | "returnNull" } = {}) => {
   return async ({ queryKey }: { queryKey: string[] }) => {
     const url = `https://myshop-test-backend.onrender.com${queryKey[0]}`;
-    
-    const response = await fetch(url, {
-      credentials: 'include', // CRITICAL: Always include credentials
-  headers: {
-  'Content-Type': 'application/json',
-  'X-CSRF-Token': await getCsrfToken()
-},
 
+    const response = await fetch(url, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': await getCsrfToken(),
+      },
     });
 
     if (response.status === 401) {
       if (on401 === "returnNull") {
         return null;
       }
-      throw new Error('Unauthorized');
+      throw new Error("Unauthorized");
     }
 
     if (!response.ok) {
