@@ -6,6 +6,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { CartProvider } from "@/context/CartContext";
+// Import icons - adjust path based on your setup
+import { Loader2 } from "lucide-react";
+
+// If ShoppingBag import fails, we'll use a fallback SVG
+const ShoppingBag = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 12H6L5 9z" />
+  </svg>
+);
 
 // Pages
 import NotFound from "@/pages/not-found";
@@ -19,7 +28,7 @@ import Admin from "@/pages/Admin";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 
-// Loading screen
+// Professional Loading Screen
 function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
@@ -36,7 +45,7 @@ function LoadingScreen() {
         {/* Brand Name */}
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-            sho-Audio
+            Your Store
           </h1>
           <p className="text-slate-500 text-sm">
             Loading your shopping experience...
@@ -64,29 +73,28 @@ function LoadingScreen() {
   );
 }
 
-
 // ProtectedRoute wrapper
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
-
+  
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/"); // Redirect to landing/home
     }
   }, [isAuthenticated, navigate]);
-
+  
   if (!isAuthenticated) return null; // Optionally show spinner or redirect notice
-
+  
   return <Component />;
 }
 
 // Main router
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
-
+  
   if (isLoading) return <LoadingScreen />;
-
+  
   return (
     <Switch>
       <Route path="/" component={isAuthenticated ? Home : Landing} />
