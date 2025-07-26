@@ -217,4 +217,4 @@ export function useAuth() {
     forceRefresh,
     debugAuth, // Useful for debugging
   };
-    }
+  }
