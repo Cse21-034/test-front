@@ -12,17 +12,8 @@ let csrfTokenPromise: Promise<string> | null = null;
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    let errorMessage = res.statusText;
-    try {
-      const errorData = await res.text();
-      errorMessage = errorData || res.statusText;
-    } catch (e) {
-      // Use statusText if can't parse response
-    }
-    
-    const error = new Error(`${res.status}: ${errorMessage}`);
-    (error as any).status = res.status;
-    throw error;
+    const text = (await res.text()) || res.statusText;
+    throw new Error(`${res.status}: ${text}`);
   }
 }
 
@@ -41,14 +32,10 @@ async function getCsrfToken(): Promise<string> {
   // Create new request
   csrfTokenPromise = (async () => {
     try {
-      console.log('🔑 Fetching CSRF token...');
-      
       const res = await fetch(`${BASE_URL}/api/csrf-token`, { 
-        method: 'GET',
-        credentials: "include", // CRITICAL: Include credentials
+        credentials: "include",
         headers: {
           'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
         }
       });
       
@@ -59,18 +46,15 @@ async function getCsrfToken(): Promise<string> {
       const data = await res.json();
       csrfTokenCache = data.csrfToken;
       
-      console.log('✅ CSRF token obtained');
-      
-      // Clear cache after 10 minutes (tokens should be refreshed periodically)
+      // Clear cache after 10 minutes
       setTimeout(() => {
-        console.log('🔑 CSRF token cache expired');
         csrfTokenCache = null;
       }, 10 * 60 * 1000);
       
       return csrfTokenCache;
     } catch (error) {
-      console.warn('⚠️ Failed to get CSRF token:', error);
-      // For some requests, we can proceed without CSRF token
+      console.error('Failed to get CSRF token:', error);
+      // For GET requests, we can still try without CSRF token
       return '';
     } finally {
       csrfTokenPromise = null;
@@ -82,7 +66,6 @@ async function getCsrfToken(): Promise<string> {
 
 // Clear CSRF token cache (useful for logout or auth errors)
 export function clearCsrfToken() {
-  console.log('🔑 Clearing CSRF token cache');
   csrfTokenCache = null;
   csrfTokenPromise = null;
 }
@@ -90,11 +73,8 @@ export function clearCsrfToken() {
 export async function apiRequest(method: string, url: string, data?: unknown): Promise<Response> {
   const fullUrl = url.startsWith("http") ? url : `${BASE_URL}${url}`;
   
-  console.log(`🌐 API ${method} request to:`, fullUrl);
-  
   const headers: Record<string, string> = {
     'Accept': 'application/json',
-    'Cache-Control': 'no-cache',
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
 
@@ -104,47 +84,36 @@ export async function apiRequest(method: string, url: string, data?: unknown): P
       const csrfToken = await getCsrfToken();
       if (csrfToken) {
         headers["X-CSRF-Token"] = csrfToken;
-        console.log('🔑 Added CSRF token to request');
       }
     } catch (error) {
-      console.warn('⚠️ Could not get CSRF token, proceeding without it:', error);
+      console.warn('Could not get CSRF token, proceeding without it:', error);
     }
   }
 
-  const requestConfig: RequestInit = {
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include", // CRITICAL: Always include credentials for session cookies
-  };
-
-  console.log('🌐 Request config:', {
-    method,
-    url: fullUrl,
-    hasData: !!data,
-    hasCSRF: !!headers["X-CSRF-Token"],
-    credentials: requestConfig.credentials
+    credentials: "include", // CRITICAL: Always include credentials
   });
-
-  let res = await fetch(fullUrl, requestConfig);
 
   // If we get a 403 (CSRF error), clear token cache and retry once
   if (res.status === 403 && method !== 'GET' && !headers["X-CSRF-Token"]) {
-    console.log('🔄 Retrying request with fresh CSRF token...');
     clearCsrfToken();
-    
     const retryToken = await getCsrfToken();
     if (retryToken) {
       headers["X-CSRF-Token"] = retryToken;
-      res = await fetch(fullUrl, {
-        ...requestConfig,
+      const retryRes = await fetch(fullUrl, {
+        method,
         headers,
+        body: data ? JSON.stringify(data) : undefined,
+        credentials: "include",
       });
+      await throwIfResNotOk(retryRes);
+      return retryRes;
     }
   }
 
-  console.log(`📨 Response: ${res.status} ${res.statusText}`);
-  
   await throwIfResNotOk(res);
   return res;
 }
@@ -157,14 +126,11 @@ export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryF
     const urlOrPath = queryKey[0] as string;
     const fullUrl = urlOrPath.startsWith("http") ? urlOrPath : `${BASE_URL}${urlOrPath}`;
     
-    console.log('🔍 Query request to:', fullUrl);
-    
     const headers: Record<string, string> = {
       'Accept': 'application/json',
-      'Cache-Control': 'no-cache'
     };
 
-    // For some protected GET requests, we might need CSRF tokens
+    // For GET requests, we don't usually need CSRF tokens, but some endpoints might require them
     try {
       const csrfToken = await getCsrfToken();
       if (csrfToken) {
@@ -172,19 +138,15 @@ export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryF
       }
     } catch (error) {
       // Ignore CSRF token errors for GET requests
-      console.debug('⚠️ CSRF token not available for GET request:', error);
+      console.debug('CSRF token not available for GET request:', error);
     }
 
     const res = await fetch(fullUrl, {
-      method: 'GET',
       credentials: "include", // CRITICAL: Always include credentials
       headers,
     });
 
-    console.log(`📨 Query response: ${res.status} ${res.statusText}`);
-
     if (on401 === "returnNull" && res.status === 401) {
-      console.log('🚫 Unauthorized request, returning null');
       return null as any;
     }
 
@@ -196,11 +158,8 @@ export const customQueryFn = async ({ queryKey }: { queryKey: readonly unknown[]
   const urlOrPath = queryKey[0] as string;
   const fullUrl = urlOrPath.startsWith("http") ? urlOrPath : `${BASE_URL}${urlOrPath}`;
   
-  console.log('🔍 Custom query to:', fullUrl);
-  
   const headers: Record<string, string> = {
     'Accept': 'application/json',
-    'Cache-Control': 'no-cache'
   };
 
   try {
@@ -209,16 +168,13 @@ export const customQueryFn = async ({ queryKey }: { queryKey: readonly unknown[]
       headers["X-CSRF-Token"] = csrfToken;
     }
   } catch (error) {
-    console.debug('⚠️ CSRF token not available:', error);
+    console.debug('CSRF token not available:', error);
   }
 
   const res = await fetch(fullUrl, {
-    method: 'GET',
-    credentials: "include", // CRITICAL: Always include credentials
+    credentials: "include",
     headers,
   });
-
-  console.log(`📨 Custom query response: ${res.status} ${res.statusText}`);
 
   if (!res.ok) {
     if (res.status === 404) {
@@ -236,37 +192,21 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: 2 * 60 * 1000, // 2 minutes (reduced for better auth state sync)
-      gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
+      staleTime: 5 * 60 * 1000, // 5 minutes
       retry: (failureCount, error) => {
-        const errorMessage = error?.message || '';
-        
-        // Don't retry auth errors
-        if (errorMessage.includes("401") || errorMessage.includes("403")) {
-          console.log('🚫 Not retrying auth error:', errorMessage);
+        // Don't retry 4xx errors
+        if (error?.message?.includes("401") || error?.message?.includes("403") || error?.message?.includes("404")) {
           return false;
         }
-        
-        // Don't retry 404s
-        if (errorMessage.includes("404")) {
-          return false;
-        }
-        
-        // Retry network errors up to 3 times
         return failureCount < 3;
       },
     },
     mutations: { 
       retry: (failureCount, error) => {
-        const errorMessage = error?.message || '';
-        
-        // Don't retry client errors (4xx)
-        if (errorMessage.match(/^4\d\d:/)) {
-          console.log('🚫 Not retrying client error:', errorMessage);
+        // Don't retry client errors
+        if (error?.message?.includes("4")) {
           return false;
         }
-        
-        // Retry server errors up to 2 times
         return failureCount < 2;
       }
     },
