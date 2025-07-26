@@ -6,10 +6,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { CartProvider } from "@/context/CartContext";
-// Import icons - adjust path based on your setup
+import CookieConsent from "react-cookie-consent"; // Added for cookie consent banner
+
+// Import icons
 import { Loader2 } from "lucide-react";
 
-// If ShoppingBag import fails, we'll use a fallback SVG
+// Fallback ShoppingBag SVG
 const ShoppingBag = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 12H6L5 9z" />
@@ -57,16 +59,11 @@ function LoadingScreen() {
           <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
           <div className="flex space-x-1">
             <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-blue-50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
             <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
           </div>
         </div>
         
-        {/* Progress Bar */}
-        <div className="w-64 mx-auto">
-          <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full animate-pulse"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -75,7 +72,7 @@ function LoadingScreen() {
 
 // ProtectedRoute wrapper
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth;
   const [, navigate] = useLocation();
   
   useEffect(() => {
@@ -84,7 +81,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     }
   }, [isAuthenticated, navigate]);
   
-  if (!isAuthenticated) return null; // Optionally show spinner or redirect notice
+  if (!return isAuthenticated) { return null; // Optionally show spinner or redirect notice
   
   return <Component />;
 }
@@ -118,6 +115,35 @@ function App() {
         <CartProvider>
           <Toaster />
           <Router />
+          {/* Cookie Consent Banner */}
+          <CookieConsent
+            location="bottom"
+            buttonText="Accept Cookies"
+            declineButtonText="Decline"
+            cookieName="cookieConsent"
+            containerClasses="fixed bottom-4 left-0 right-0 mx-auto max-w-lg bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 flex flex-col sm:flex-row items-center justify-between z-50"
+            buttonClasses="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            declineButtonClasses="border border-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 mr-2"
+            contentClasses="text-gray-700 dark:text-gray-300 text-sm mb-2 sm:mb-0 sm:mr-4"
+            expires={365} // Cookie consent persists for 1 year
+            enableDeclineButton={true}
+            onAccept={() => {
+              console.log("✅ Cookie consent accepted");
+              // Trigger auth refresh if needed
+              queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+            }}
+            onDecline={() => {
+              console.warn("❌ Cookie consent declined, falling back to JWT or manual cookie enabling");
+              // Notify user about limited functionality
+              alert(
+                "Some features, like login, may require cookies. Please enable third-party cookies in your browser settings or try again later."
+              );
+              // Optionally redirect to a page explaining how to enable cookies
+              // window.location.href = "/cookie-info";
+            }}
+          >
+            This website uses cookies to enable essential features like authentication and cart management. By accepting, you agree to the use of cookies.
+          </CookieConsent>
         </CartProvider>
       </TooltipProvider>
     </QueryClientProvider>
