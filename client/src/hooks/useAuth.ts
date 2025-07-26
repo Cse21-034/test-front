@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback } from "react";
 import { getQueryFn, clearCsrfToken, BASE_URL } from "@/lib/queryClient";
 
 interface User {
@@ -13,121 +13,31 @@ interface User {
 
 export function useAuth() {
   const queryClient = useQueryClient();
-  const retryAttemptRef = useRef(0);
-  const maxRetryAttempts = 5;
   
   const { data, isLoading, error, isFetching, refetch } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    retry: (failureCount, error) => {
-      // Don't retry 401 errors (user not authenticated)
-      if (error?.message?.includes('401')) {
-        return false;
-      }
-      // Retry network errors
-      return failureCount < 3;
-    },
+    retry: false,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    staleTime: 2 * 60 * 1000, // Cache for 2 minutes (reduced for better sync)
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes (reduced from 10)
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
   // Debug function to check auth status
   const debugAuth = useCallback(async () => {
     try {
-      console.log('🔍 Debugging auth status...');
       const response = await fetch(`${BASE_URL}/api/auth/debug`, {
-        method: 'GET',
         credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
       });
-      
-      if (!response.ok) {
-        console.error('❌ Debug request failed:', response.status, response.statusText);
-        return null;
-      }
-      
       const debugData = await response.json();
       console.log('🔍 Auth Debug:', debugData);
-      
-      // If user exists in debug but not in our state, there's a session issue
-      if (debugData.isAuthenticated && debugData.user && !data) {
-        console.log('⚠️ Session mismatch detected - user authenticated on server but not in client');
-      }
-      
       return debugData;
     } catch (error) {
       console.error('❌ Debug failed:', error);
       return null;
     }
-  }, [data]);
-
-  // Enhanced login success handler
-  const handleLoginSuccess = useCallback(async () => {
-    console.log('🔐 Handling login success...');
-    retryAttemptRef.current = 0;
-    
-    // Clear any cached CSRF tokens since we have a new session
-    clearCsrfToken();
-    
-    // Clear all cached data to ensure fresh fetch
-    queryClient.clear();
-    
-    const attemptRefetch = async (attempt = 1): Promise<boolean> => {
-      console.log(`🔐 Login success refetch attempt ${attempt}/${maxRetryAttempts}`);
-      
-      try {
-        // First, debug the auth status
-        const debugResult = await debugAuth();
-        
-        if (debugResult?.isAuthenticated && debugResult?.user) {
-          console.log('✅ Server confirms user is authenticated');
-          // Force invalidate and refetch user data
-          queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-          await queryClient.refetchQueries({ 
-            queryKey: ["/api/auth/user"],
-            type: 'active'
-          });
-          
-          // Check if we now have user data
-          const currentData = queryClient.getQueryData(["/api/auth/user"]);
-          
-          if (currentData) {
-            console.log('✅ User data successfully fetched:', currentData);
-            return true;
-          }
-        }
-        
-        // If no authenticated user on server or client fetch failed
-        if (attempt < maxRetryAttempts) {
-          const delay = Math.min(1000 * Math.pow(1.5, attempt - 1), 4000);
-          console.log(`⏳ Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return attemptRefetch(attempt + 1);
-        } else {
-          console.log('❌ Failed to fetch user data after', maxRetryAttempts, 'attempts');
-          // Final attempt with direct refetch
-          await refetch();
-          return false;
-        }
-      } catch (error) {
-        console.error(`❌ Refetch attempt ${attempt} failed:`, error);
-        if (attempt < maxRetryAttempts) {
-          const delay = Math.min(1000 * Math.pow(1.5, attempt - 1), 4000);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return attemptRefetch(attempt + 1);
-        }
-        return false;
-      }
-    };
-    
-    // Start with a small delay to ensure OAuth redirect is complete
-    setTimeout(() => attemptRefetch(), 1000);
-  }, [queryClient, refetch, debugAuth, maxRetryAttempts]);
+  }, []);
 
   // Handle OAuth redirect parameters
   useEffect(() => {
@@ -136,8 +46,52 @@ export function useAuth() {
     const logoutStatus = urlParams.get('logout');
     
     if (loginStatus === 'success') {
-      console.log('🔐 OAuth success detected, handling login...');
-      handleLoginSuccess();
+      console.log('🔐 OAuth success detected, refetching user data...');
+      
+      // Clear any cached CSRF tokens since we have a new session
+      clearCsrfToken();
+      
+      // Multiple attempts to ensure session is recognized
+      const attemptRefetch = async (attempt = 1, maxAttempts = 8) => {
+        console.log(`🔐 Refetch attempt ${attempt}/${maxAttempts}`);
+        
+        try {
+          // Debug auth status first
+          await debugAuth();
+          
+          // Force invalidate and refetch
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+          await queryClient.refetchQueries({ queryKey: ["/api/auth/user"] });
+          
+          // Check if we now have user data
+          const currentData = queryClient.getQueryData(["/api/auth/user"]);
+          
+          if (currentData) {
+            console.log('✅ User data fetched successfully:', currentData);
+            return;
+          }
+          
+          // If no data and we have attempts left, try again with exponential backoff
+          if (attempt < maxAttempts) {
+            const delay = Math.min(1000 * Math.pow(1.5, attempt - 1), 5000); // Max 5 second delay
+            console.log(`⏳ Retrying in ${delay}ms...`);
+            setTimeout(() => attemptRefetch(attempt + 1, maxAttempts), delay);
+          } else {
+            console.log('❌ Failed to fetch user data after', maxAttempts, 'attempts');
+            // Try one more manual refetch
+            refetch();
+          }
+        } catch (error) {
+          console.error(`❌ Refetch attempt ${attempt} failed:`, error);
+          if (attempt < maxAttempts) {
+            const delay = Math.min(1000 * Math.pow(1.5, attempt - 1), 5000);
+            setTimeout(() => attemptRefetch(attempt + 1, maxAttempts), delay);
+          }
+        }
+      };
+      
+      // Start with a small delay to ensure redirect is complete
+      setTimeout(() => attemptRefetch(), 800);
       
       // Clean up URL params
       const newUrl = window.location.pathname + window.location.hash;
@@ -165,17 +119,19 @@ export function useAuth() {
       const newUrl = window.location.pathname + window.location.hash;
       window.history.replaceState({}, document.title, newUrl);
     }
-  }, [queryClient, handleLoginSuccess]);
+  }, [queryClient, refetch, debugAuth]);
 
-  // Handle page visibility changes (when user returns from OAuth)
+  // Handle page visibility changes (when user returns from OAuth popup/redirect)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && !data && !isLoading) {
         console.log('🔐 Page became visible and no user data, checking auth status...');
+        
+        // Small delay to ensure any ongoing requests complete
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
           refetch();
-        }, 500);
+        }, 300);
       }
     };
     
@@ -185,7 +141,7 @@ export function useAuth() {
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
           refetch();
-        }, 500);
+        }, 300);
       }
     };
     
@@ -199,7 +155,6 @@ export function useAuth() {
   }, [data, isLoading, queryClient, refetch]);
 
   const login = useCallback(() => {
-    console.log('🔐 Initiating login...');
     // Redirect to Google OAuth
     window.location.href = `${BASE_URL}/auth/google`;
   }, []);
@@ -210,11 +165,9 @@ export function useAuth() {
       
       // Call logout endpoint
       const response = await fetch(`${BASE_URL}/auth/logout`, {
-        method: 'POST',
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
         }
       });
 
@@ -225,10 +178,13 @@ export function useAuth() {
       // Set user data to null
       queryClient.setQueryData(["/api/auth/user"], null);
       
-      console.log('✅ Logout completed');
-      
-      // Optional: redirect to home page
-      // window.location.href = '/?logout=success';
+      // If logout endpoint doesn't redirect, redirect manually
+      if (response.redirected) {
+        window.location.href = response.url;
+      } else {
+        // Fallback redirect
+        window.location.href = '/?logout=success';
+      }
     } catch (error) {
       console.error('❌ Logout failed:', error);
       
@@ -236,6 +192,9 @@ export function useAuth() {
       queryClient.clear();
       clearCsrfToken();
       queryClient.setQueryData(["/api/auth/user"], null);
+      
+      // Force redirect to home
+      window.location.href = '/';
     }
   }, [queryClient]);
 
@@ -258,4 +217,4 @@ export function useAuth() {
     forceRefresh,
     debugAuth, // Useful for debugging
   };
-}
+  }
