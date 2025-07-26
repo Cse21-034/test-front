@@ -1,12 +1,12 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 const BASE_URL = (
-  import.meta.env.VITE_API_BASE || 
-  import.meta.env.VITE_API_BASE_URL || 
+  import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_API_BASE_URL ||
   "https://myshop-test-backend.onrender.com"
 ).replace(/\/$/, "");
 
-// Cache for CSRF token to avoid repeated requests
+// Cache for CSRF token
 let csrfTokenCache: string | null = null;
 let csrfTokenPromise: Promise<string> | null = null;
 
@@ -17,45 +17,40 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-// Improved CSRF token fetching with caching and error handling
 async function getCsrfToken(): Promise<string> {
-  // Return cached token if available and still valid
   if (csrfTokenCache) {
     return csrfTokenCache;
   }
 
-  // If there's already a request in progress, wait for it
   if (csrfTokenPromise) {
     return csrfTokenPromise;
   }
 
-  // Create new request
   csrfTokenPromise = (async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/csrf-token`, { 
+      const res = await fetch(`${BASE_URL}/api/csrf-token`, {
         credentials: "include",
         headers: {
-          'Accept': 'application/json',
-        }
+          Accept: "application/json",
+          Authorization: localStorage.getItem("jwtToken") ? `Bearer ${localStorage.getItem("jwtToken")}` : "",
+        },
       });
-      
+
       if (!res.ok) {
         throw new Error(`Failed to get CSRF token: ${res.status}`);
       }
-      
+
       const data = await res.json();
       csrfTokenCache = data.csrfToken;
-      
-      // Clear cache after 10 minutes
+
       setTimeout(() => {
         csrfTokenCache = null;
       }, 10 * 60 * 1000);
-      
+
       return csrfTokenCache;
     } catch (error) {
-      console.error('Failed to get CSRF token:', error);
-      // For GET requests, we can still try without CSRF token
-      return '';
+      console.error("Failed to get CSRF token:", error);
+      return "";
     } finally {
       csrfTokenPromise = null;
     }
@@ -64,7 +59,6 @@ async function getCsrfToken(): Promise<string> {
   return csrfTokenPromise;
 }
 
-// Clear CSRF token cache (useful for logout or auth errors)
 export function clearCsrfToken() {
   csrfTokenCache = null;
   csrfTokenPromise = null;
@@ -72,33 +66,38 @@ export function clearCsrfToken() {
 
 export async function apiRequest(method: string, url: string, data?: unknown): Promise<Response> {
   const fullUrl = url.startsWith("http") ? url : `${BASE_URL}${url}`;
-  
+
   const headers: Record<string, string> = {
-    'Accept': 'application/json',
+    Accept: "application/json",
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
 
-  // Add CSRF token for non-GET requests
-  if (method !== 'GET') {
+  const token = localStorage.getItem("jwtToken");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  if (method !== "GET") {
     try {
       const csrfToken = await getCsrfToken();
       if (csrfToken) {
         headers["X-CSRF-Token"] = csrfToken;
       }
     } catch (error) {
-      console.warn('Could not get CSRF token, proceeding without it:', error);
+      console.warn("Could not get CSRF token, proceeding without it:", error);
     }
   }
+
+  console.log("🔗 API Request:", { method, url, headers, hasToken: !!token });
 
   const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include", // CRITICAL: Always include credentials
+    credentials: "include",
   });
 
-  // If we get a 403 (CSRF error), clear token cache and retry once
-  if (res.status === 403 && method !== 'GET' && !headers["X-CSRF-Token"]) {
+  if (res.status === 403 && method !== "GET" && !headers["X-CSRF-Token"]) {
     clearCsrfToken();
     const retryToken = await getCsrfToken();
     if (retryToken) {
@@ -125,26 +124,31 @@ export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryF
   async ({ queryKey }) => {
     const urlOrPath = queryKey[0] as string;
     const fullUrl = urlOrPath.startsWith("http") ? urlOrPath : `${BASE_URL}${urlOrPath}`;
-    
+
     const headers: Record<string, string> = {
-      'Accept': 'application/json',
+      Accept: "application/json",
     };
 
-    // For GET requests, we don't usually need CSRF tokens, but some endpoints might require them
+    const token = localStorage.getItem("jwtToken");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     try {
       const csrfToken = await getCsrfToken();
       if (csrfToken) {
         headers["X-CSRF-Token"] = csrfToken;
       }
     } catch (error) {
-      // Ignore CSRF token errors for GET requests
-      console.debug('CSRF token not available for GET request:', error);
+      console.debug("CSRF token not available for GET request:", error);
     }
 
     const res = await fetch(fullUrl, {
-      credentials: "include", // CRITICAL: Always include credentials
+      credentials: "include",
       headers,
     });
+
+    console.log("🔗 Query Response:", { url: fullUrl, status: res.status, headers });
 
     if (on401 === "returnNull" && res.status === 401) {
       return null as any;
@@ -157,10 +161,15 @@ export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryF
 export const customQueryFn = async ({ queryKey }: { queryKey: readonly unknown[] }) => {
   const urlOrPath = queryKey[0] as string;
   const fullUrl = urlOrPath.startsWith("http") ? urlOrPath : `${BASE_URL}${urlOrPath}`;
-  
+
   const headers: Record<string, string> = {
-    'Accept': 'application/json',
+    Accept: "application/json",
   };
+
+  const token = localStorage.getItem("jwtToken");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
 
   try {
     const csrfToken = await getCsrfToken();
@@ -168,7 +177,7 @@ export const customQueryFn = async ({ queryKey }: { queryKey: readonly unknown[]
       headers["X-CSRF-Token"] = csrfToken;
     }
   } catch (error) {
-    console.debug('CSRF token not available:', error);
+    console.debug("CSRF token not available:", error);
   }
 
   const res = await fetch(fullUrl, {
@@ -192,23 +201,21 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
       retry: (failureCount, error) => {
-        // Don't retry 4xx errors
         if (error?.message?.includes("401") || error?.message?.includes("403") || error?.message?.includes("404")) {
           return false;
         }
         return failureCount < 3;
       },
     },
-    mutations: { 
+    mutations: {
       retry: (failureCount, error) => {
-        // Don't retry client errors
         if (error?.message?.includes("4")) {
           return false;
         }
         return failureCount < 2;
-      }
+      },
     },
   },
 });
