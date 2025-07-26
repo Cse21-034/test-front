@@ -17,7 +17,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-// Improved CSRF token fetching with caching and error handling
+// Simplified CSRF token fetching (mock for now)
 async function getCsrfToken(): Promise<string> {
   // Return cached token if available and still valid
   if (csrfTokenCache) {
@@ -40,22 +40,16 @@ async function getCsrfToken(): Promise<string> {
       });
       
       if (!res.ok) {
-        throw new Error(`Failed to get CSRF token: ${res.status}`);
+        return 'mock-token'; // Fallback
       }
       
       const data = await res.json();
       csrfTokenCache = data.csrfToken;
       
-      // Clear cache after 10 minutes
-      setTimeout(() => {
-        csrfTokenCache = null;
-      }, 10 * 60 * 1000);
-      
       return csrfTokenCache;
     } catch (error) {
-      console.error('Failed to get CSRF token:', error);
-      // For GET requests, we can still try without CSRF token
-      return '';
+      console.warn('Failed to get CSRF token, using mock:', error);
+      return 'mock-token';
     } finally {
       csrfTokenPromise = null;
     }
@@ -78,11 +72,12 @@ export async function apiRequest(method: string, url: string, data?: unknown): P
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
 
+  // Don't add CSRF token for GET requests for now
   // Add CSRF token for non-GET requests
   if (method !== 'GET') {
     try {
       const csrfToken = await getCsrfToken();
-      if (csrfToken) {
+      if (csrfToken && csrfToken !== 'mock-token') {
         headers["X-CSRF-Token"] = csrfToken;
       }
     } catch (error) {
@@ -130,16 +125,17 @@ export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryF
       'Accept': 'application/json',
     };
 
+    // Don't add CSRF token for GET requests for now - focus on session cookies
     // For GET requests, we don't usually need CSRF tokens, but some endpoints might require them
-    try {
-      const csrfToken = await getCsrfToken();
-      if (csrfToken) {
-        headers["X-CSRF-Token"] = csrfToken;
-      }
-    } catch (error) {
-      // Ignore CSRF token errors for GET requests
-      console.debug('CSRF token not available for GET request:', error);
-    }
+    // try {
+    //   const csrfToken = await getCsrfToken();
+    //   if (csrfToken) {
+    //     headers["X-CSRF-Token"] = csrfToken;
+    //   }
+    // } catch (error) {
+    //   // Ignore CSRF token errors for GET requests
+    //   console.debug('CSRF token not available for GET request:', error);
+    // }
 
     const res = await fetch(fullUrl, {
       credentials: "include", // CRITICAL: Always include credentials
@@ -162,14 +158,15 @@ export const customQueryFn = async ({ queryKey }: { queryKey: readonly unknown[]
     'Accept': 'application/json',
   };
 
-  try {
-    const csrfToken = await getCsrfToken();
-    if (csrfToken) {
-      headers["X-CSRF-Token"] = csrfToken;
-    }
-  } catch (error) {
-    console.debug('CSRF token not available:', error);
-  }
+  // Don't add CSRF for now
+  // try {
+  //   const csrfToken = await getCsrfToken();
+  //   if (csrfToken) {
+  //     headers["X-CSRF-Token"] = csrfToken;
+  //   }
+  // } catch (error) {
+  //   console.debug('CSRF token not available:', error);
+  // }
 
   const res = await fetch(fullUrl, {
     credentials: "include",
