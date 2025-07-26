@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { CartProvider } from "@/context/CartContext";
-import CookieConsent from "react-cookie-consent"; // Added for cookie consent banner
+import CookieConsent from "react-cookie-consent"; // Cookie consent banner
 
 // Import icons
 import { Loader2 } from "lucide-react";
@@ -59,11 +59,16 @@ function LoadingScreen() {
           <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
           <div className="flex space-x-1">
             <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-            <div className="w-2 h-2 bg-blue-50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
             <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
           </div>
         </div>
         
+        {/* Progress Bar */}
+        <div className="w-64 mx-auto">
+          <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full animate-pulse"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -72,7 +77,7 @@ function LoadingScreen() {
 
 // ProtectedRoute wrapper
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated } = useAuth;
+  const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   
   useEffect(() => {
@@ -81,7 +86,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     }
   }, [isAuthenticated, navigate]);
   
-  if (!return isAuthenticated) { return null; // Optionally show spinner or redirect notice
+  if (!isAuthenticated) return null; // Optionally show spinner or redirect notice
   
   return <Component />;
 }
@@ -129,7 +134,7 @@ function App() {
             enableDeclineButton={true}
             onAccept={() => {
               console.log("✅ Cookie consent accepted");
-              // Trigger auth refresh if needed
+              // Trigger auth refresh
               queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
             }}
             onDecline={() => {
@@ -138,8 +143,6 @@ function App() {
               alert(
                 "Some features, like login, may require cookies. Please enable third-party cookies in your browser settings or try again later."
               );
-              // Optionally redirect to a page explaining how to enable cookies
-              // window.location.href = "/cookie-info";
             }}
           >
             This website uses cookies to enable essential features like authentication and cart management. By accepting, you agree to the use of cookies.
